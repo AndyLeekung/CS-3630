@@ -1,3 +1,6 @@
+# Chingyeu Leekung
+# Mingyang Zhu
+
 from grid import *
 from particle import Particle
 from utils import *
@@ -5,7 +8,7 @@ from setting import *
 import setting
 import numpy as np
 
-RANDOM_SAMPLE_SIZE = 50
+RANDOM_SAMPLE_SIZE = 250
 TRANS_SIGMA_CONSTANT = 2 * (MARKER_TRANS_SIGMA ** 2)
 ROT_SIGMA_CONSTANT = 2 * (MARKER_ROT_SIGMA ** 2)
 
@@ -63,7 +66,6 @@ def measurement_update(particles, measured_marker_list, grid):
     normalize_factor = 0.0
 
     # update weights 
-
     for p in particles:
         if not grid.is_free(p.x, p.y) or not grid.is_in(p.x, p.y):
             particles_with_prob.append(p)
@@ -80,7 +82,6 @@ def measurement_update(particles, measured_marker_list, grid):
         prob_of_particles = [weight / normalize_factor for weight in weight_of_particles]
 
     # resample
-
     measured_particles = np.random.choice(particles_with_prob, \
         size=len(particles_with_prob) - RANDOM_SAMPLE_SIZE, replace=True, p=prob_of_particles)
     measured_particles = measured_particles.tolist()
@@ -91,44 +92,8 @@ def measurement_update(particles, measured_marker_list, grid):
 
 def get_probability(particle, measured_marker_list, grid):
     marker_list = particle.read_markers(grid)
-    
-    # handle uneven number of markers seen
-    # multiply prob by SPURIOUS and DETECTION
-    # markers_robot_seen = len(measured_marker_list)
-    # markers_particle_seen = len(markers_list)
-    # if markers_robot_seen > markers_particle_seen:
-    #     return SPURIOUS_DETECTION_RATE
-    # if markers_robot_seen < markers_particle_seen:
-    #     return DETECTION_FAILURE_RATE
 
-    marker_pairs = [] # (robot_marker, particle_marker, distance, angle)
-
-    # if len(measured_marker_list) == 0 or len(marker_list) == 0:
-    #     return 0.0
-        
-    # if len(measured_marker_list) > len(marker_list):
-    #     return 0.0
-
-    '''while len(measured_marker_list) > 0 and len(marker_list) > 0:
-        close_robot_marker = measured_marker_list[0]
-        close_particle_marker = marker_list[0]
-        smallest_dist = float('inf')
-        for robot_marker in measured_marker_list:
-            # closest_particle_point = marker_list[0]
-            # smallest_dist = float('inf')
-            for particle_marker in marker_list:
-                dist = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1])
-                if dist < smallest_dist:
-                    close_robot_marker = robot_marker
-                    close_particle_marker = particle_marker
-                    smallest_dist = dist
-            # marker_list.remove(closest_particle_point)
-            # marker_pairs.append((robot_marker, closest_particle_point))
-            # if len(marker_list) == 0:
-            #     break
-        marker_pairs.append((close_robot_marker, close_particle_marker))
-        measured_marker_list.remove(close_robot_marker)
-        marker_list.remove(close_particle_marker)'''
+    marker_pairs = [] # (robot_marker, particle_marker)
 
     for robot_marker in measured_marker_list: 
         smallest_dist = float('inf')
