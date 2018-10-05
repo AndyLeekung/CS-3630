@@ -5,7 +5,7 @@ from setting import *
 import setting
 import numpy as np
 
-RANDOM_SAMPLE_SIZE = 100
+RANDOM_SAMPLE_SIZE = 50
 TRANS_SIGMA_CONSTANT = 2 * (MARKER_TRANS_SIGMA ** 2)
 ROT_SIGMA_CONSTANT = 2 * (MARKER_ROT_SIGMA ** 2)
 
@@ -109,7 +109,7 @@ def get_probability(particle, measured_marker_list, grid):
     # if len(measured_marker_list) > len(marker_list):
     #     return 0.0
 
-    while len(measured_marker_list) > 0 and len(marker_list) > 0:
+    '''while len(measured_marker_list) > 0 and len(marker_list) > 0:
         close_robot_marker = measured_marker_list[0]
         close_particle_marker = marker_list[0]
         smallest_dist = float('inf')
@@ -128,7 +128,32 @@ def get_probability(particle, measured_marker_list, grid):
             #     break
         marker_pairs.append((close_robot_marker, close_particle_marker))
         measured_marker_list.remove(close_robot_marker)
-        marker_list.remove(close_particle_marker)
+        marker_list.remove(close_particle_marker)'''
+
+
+    myList = []                             # List of stacks
+    for robot_marker in measured_marker_list: 
+        smallest_dist = float('inf')
+        pairStack = []                      # Stack of closest particle marker, with the lowest on the top
+        for particle_marker in marker_list:
+            dist = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1]);
+            if dist < smallest_dist:
+                pairStack.append((robot_marker, particle_marker))
+                smallest_dist = dist
+        myList.append(pairStack)
+
+    for stack in myList:
+        if stack:
+            marker_pairs.append(stack.pop())
+
+
+
+
+
+
+
+
+
 
     prob = 1.0
     for robot_marker, particle_marker in marker_pairs:
