@@ -130,30 +130,19 @@ def get_probability(particle, measured_marker_list, grid):
         measured_marker_list.remove(close_robot_marker)
         marker_list.remove(close_particle_marker)'''
 
-
-    myList = []                             # List of stacks
     for robot_marker in measured_marker_list: 
         smallest_dist = float('inf')
-        pairStack = []                      # Stack of closest particle marker, with the lowest on the top
-        for particle_marker in marker_list:
-            dist = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1]);
-            if dist < smallest_dist:
-                pairStack.append((robot_marker, particle_marker))
-                smallest_dist = dist
-        myList.append(pairStack)
-
-    for stack in myList:
-        if stack:
-            marker_pairs.append(stack.pop())
-
-
-
-
-
-
-
-
-
+        if len(marker_list) > 0:
+            closest_robot_marker = robot_marker
+            closest_particle_marker = marker_list[0]
+            for particle_marker in marker_list:
+                dist = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1])
+                if dist < smallest_dist:
+                    closest_robot_marker = robot_marker
+                    closest_particle_marker = particle_marker
+                    smallest_dist = dist
+            marker_pairs.append((closest_robot_marker, closest_particle_marker))
+            marker_list.remove(closest_particle_marker)
 
     prob = 1.0
     for robot_marker, particle_marker in marker_pairs:
@@ -161,9 +150,11 @@ def get_probability(particle, measured_marker_list, grid):
         angle = diff_heading_deg(robot_marker[2], particle_marker[2])
         expr1 = (distance ** 2) / TRANS_SIGMA_CONSTANT
         expr2 = (angle ** 2) / ROT_SIGMA_CONSTANT
-        prob *= math.exp(-1 * (expr1 + expr2))
+        prob_match = math.exp(-1 * (expr1 + expr2))
+        prob_no_match = setting.SPURIOUS_DETECTION_RATE * setting.DETECTION_FAILURE_RATE
+        prob *= max((prob_match, prob_no_match))
 
-    prob *= setting.SPURIOUS_DETECTION_RATE ** len(measured_marker_list)
+    prob *= setting.SPURIOUS_DETECTION_RATE ** (len(measured_marker_list) - len(marker_pairs))
 
     prob *= setting.DETECTION_FAILURE_RATE ** len(marker_list)
 
