@@ -5,7 +5,7 @@ from setting import *
 
 import numpy as np
 
-RANDOM_SAMPLE_SIZE = 200
+RANDOM_SAMPLE_SIZE = 100
 TRANS_SIGMA_CONSTANT = 2 * (MARKER_TRANS_SIGMA ** 2)
 ROT_SIGMA_CONSTANT = 2 * (MARKER_ROT_SIGMA ** 2)
 
@@ -25,7 +25,8 @@ def motion_update(particles, odom):
     for particle in particles:
         x, y, h = particle.xyh
         dx, dy = rotate_point(odom[0], odom[1], h)
-        updated_particle = Particle(x + dx, y + dy, h + dh)
+        new_x, new_y, new_h = add_odometry_noise((x + dx, y + dy, h + dh), ODOM_HEAD_SIGMA, ODOM_TRANS_SIGMA)
+        updated_particle = Particle(new_x, new_y, new_h)
         motion_particles.append(updated_particle)
     return motion_particles
 
@@ -101,35 +102,46 @@ def get_probability(particle, measured_marker_list, grid):
     #     return DETECTION_FAILURE_RATE
 
     marker_pairs = [] # (robot_marker, particle_marker, distance, angle)
-    prob = 1.0
 
-    if len(measured_marker_list) == 0:
-        return 1.0
+    # if len(measured_marker_list) == 0 or len(marker_list) == 0:
+    #     return 0.0
         
-    for robot_marker in measured_marker_list:
-        if len(marker_list) > 0:
-            closest_particle_point = marker_list[0]
-            smallest_dist = float('inf')
+    # if len(measured_marker_list) > len(marker_list):
+    #     return 0.0
+
+    while len(measured_marker_list) > 0 and len(marker_list) > 0:
+        close_robot_marker = measured_marker_list[0]
+        close_particle_marker = marker_list[0]
+        smallest_dist = float('inf')
+        for robot_marker in measured_marker_list:
+            # closest_particle_point = marker_list[0]
+            # smallest_dist = float('inf')
             for particle_marker in marker_list:
                 dist = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1])
                 if dist < smallest_dist:
-                    closest_particle_point = particle_marker
+                    close_robot_marker = robot_marker
+                    close_particle_marker = particle_marker
                     smallest_dist = dist
-            marker_list.remove(closest_particle_point)
-            marker_pairs.append((robot_marker, closest_particle_point))
+            # marker_list.remove(closest_particle_point)
+            # marker_pairs.append((robot_marker, closest_particle_point))
+            # if len(marker_list) == 0:
+            #     break
+        marker_pairs.append((close_robot_marker, close_particle_marker))
+        measured_marker_list.remove(close_robot_marker)
+        marker_list.remove(close_particle_marker)
 
-    # for x in range(len(measured_marker_list)):
-    #     prob *= SPURIOUS_DETECTION_RATE
-
-    # for x in range(len(marker_list)):
-    #     prob *= DETECTION_FAILURE_RATE
-
-
+    prob = 1.0
     for robot_marker, particle_marker in marker_pairs:
         distance = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1])
         angle = diff_heading_deg(robot_marker[2], particle_marker[2])
         expr1 = (distance ** 2) / TRANS_SIGMA_CONSTANT
         expr2 = (angle ** 2) / ROT_SIGMA_CONSTANT
         prob *= math.exp(-1 * (expr1 + expr2))
+
+    for _ in range(len(measured_marker_list)):
+        prob *= SPURIOUS_DETECTION_RATE
+
+    for _ in range(len(marker_list)):
+        prob *= DETECTION_FAILURE_RATE
 
     return prob
