@@ -2,7 +2,7 @@ from grid import *
 from particle import Particle
 from utils import *
 from setting import *
-
+import setting
 import numpy as np
 
 RANDOM_SAMPLE_SIZE = 100
@@ -138,10 +138,8 @@ def get_probability(particle, measured_marker_list, grid):
         expr2 = (angle ** 2) / ROT_SIGMA_CONSTANT
         prob *= math.exp(-1 * (expr1 + expr2))
 
-    for _ in range(len(measured_marker_list)):
-        prob *= SPURIOUS_DETECTION_RATE
+    prob *= setting.SPURIOUS_DETECTION_RATE ** len(measured_marker_list)
 
-    for _ in range(len(marker_list)):
-        prob *= DETECTION_FAILURE_RATE
+    prob *= setting.DETECTION_FAILURE_RATE ** len(marker_list)
 
     return prob

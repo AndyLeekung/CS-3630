@@ -25,7 +25,7 @@ Use_GUI = True
 # 1. Robot move forward, if hit an obstacle, robot bounces to a random direction
 # 2. Robot move as a circle (This is the motion autograder uses)
 # This is the flag to enable circle motion or not
-Move_circular = False
+Move_circular = True
 
 # robot moving speed (grid per move)
 Robot_speed = 0.5
