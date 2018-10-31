@@ -28,6 +28,8 @@ from particle import Particle, Robot
 from setting import *
 from particle_filter import *
 from utils import *
+from cozmo.util import degrees, distance_mm, speed_mmps
+from pprint import pprint
 
 #particle filter functionality
 class ParticleFilter:
@@ -158,40 +160,67 @@ async def run(robot: cozmo.robot.Robot):
     ###################
 
     # YOUR CODE HERE
+    goal_mm = (goal[0] * 25.4, goal[1] * 25.4, goal[2])
+    goal_pose = cozmo.util.Pose(goal_mm[0], goal_mm[1], 0, angle_z=cozmo.util.Angle(degrees=goal_mm[2]))
     converged = False
+    counter = 0
+    counter_2 = 0
     while not converged:
+        await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+
+        print("loop")
+        print(counter)
         # Reset localization problem if the robot is picked up
-        if robot.is_picked_up():
+        if robot.is_picked_up:
+            print("robot picked up")
             pf = ParticleFilter(grid)
             last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
+            counter = 0
+            continue
         # Obtain odometry information
-        odom = compute_odometry(robot.pose())
+        odom = compute_odometry(robot.pose)
         # order of setting this? not sure
-        last_pose = robot.pose()
+        last_pose = robot.pose
+        pprint(last_pose)
 
         # Obtain list of currently seen markers and their poses
-        marker_list, annotated_image = marker_processing(robot, camera_settings)
+        marker_list, annotated_image = await marker_processing(robot, camera_settings)
 
         # Update the particle filter using the information above
         m_x, m_y, m_h, m_confident = pf.update(odom, marker_list)
+        print("Confident: " + str(m_confident))
 
         # Update the particle filter for the GUI
         gui.show_particles(pf.particles)
         gui.show_mean(m_x, m_y, m_h, m_confident)
-        gui.show_robot(robot)
+        gui.show_camera_image(annotated_image)
+        # gui.show_robot(robot)
         gui.updated.set()
 
         # Determine the robot's action based on the current state of the localization system
         if m_confident:
             converged = True
+            await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
             break
-
-        # Have the robot drive to the goal
-        robot.go_to_pose(goal)
+        
+        if counter != 4:
+            await robot.drive_straight(distance_mm(100), speed_mmps(30), in_parallel=True).wait_for_completed()
+            await robot.turn_in_place(degrees(87), in_parallel=True).wait_for_completed()
+            counter = counter + 1
+        else:
+            # Have the robot drive to the goal
+            if counter_2 != 2:
+                await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
+                counter_2 = counter_2 + 1
+            else:
+                counter_2 = 0
+                counter = 0
+       
 
 
     if converged:
-        happy_animation(robot)
+        print("converged")
+        # happy_animation(robot)
     ###################
 
 class CozmoThread(threading.Thread):

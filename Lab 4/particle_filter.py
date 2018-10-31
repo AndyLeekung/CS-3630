@@ -1,16 +1,11 @@
-# Chingyeu Leekung
-# Mingyang Zhu
-
 from grid import *
 from particle import Particle
 from utils import *
 from setting import *
-import setting
 import numpy as np
+np.random.seed(RANDOM_SEED)
+from itertools import product
 
-RANDOM_SAMPLE_SIZE = 250
-TRANS_SIGMA_CONSTANT = 2 * (MARKER_TRANS_SIGMA ** 2)
-ROT_SIGMA_CONSTANT = 2 * (MARKER_ROT_SIGMA ** 2)
 
 def motion_update(particles, odom):
     """ Particle filter motion update
@@ -24,13 +19,15 @@ def motion_update(particles, odom):
                 after motion update
     """
     motion_particles = []
-    dh = odom[2]
+
     for particle in particles:
         x, y, h = particle.xyh
-        dx, dy = rotate_point(odom[0], odom[1], h)
-        new_x, new_y, new_h = add_odometry_noise((x + dx, y + dy, h + dh), ODOM_HEAD_SIGMA, ODOM_TRANS_SIGMA)
-        updated_particle = Particle(new_x, new_y, new_h)
-        motion_particles.append(updated_particle)
+        dx, dy, dh = odom
+        c, d = rotate_point(dx, dy, h)
+        nx, ny, nh = add_odometry_noise((x+c, y+d, h+dh), heading_sigma=ODOM_HEAD_SIGMA, trans_sigma=ODOM_TRANS_SIGMA)
+        newParticle = Particle(nx, ny, nh%360)
+        motion_particles.append(newParticle)
+
     return motion_particles
 
 # ------------------------------------------------------------------------
@@ -58,69 +55,56 @@ def measurement_update(particles, measured_marker_list, grid):
         Returns: the list of particles represents belief p(x_{t} | u_{t})
                 after measurement update
     """
+    num_random_sample = 25
     measured_particles = []
+    weight = []
 
-    particles_with_prob = []
-    weight_of_particles = []
-    prob_of_particles = []
-    normalize_factor = 0.0
+    if len(measured_marker_list) > 0:
+        for particle in particles:
+            x, y = particle.xy
+            if grid.is_in(x, y) and grid.is_free(x, y):
+                markers_visible_to_particle = particle.read_markers(grid)
+                markers_visible_to_robot = measured_marker_list.copy()
 
-    # update weights 
-    for p in particles:
-        if not grid.is_free(p.x, p.y) or not grid.is_in(p.x, p.y):
-            particles_with_prob.append(p)
-            weight_of_particles.append(0.0)
-        else:
-            prob = get_probability(p, measured_marker_list, grid)
-            particles_with_prob.append(p)
-            weight_of_particles.append(prob)
-            normalize_factor += prob
+                marker_pairs = []
+                while len(markers_visible_to_particle) > 0 and len(markers_visible_to_robot) > 0:
+                    all_pairs = product(markers_visible_to_particle, markers_visible_to_robot)
+                    pm, rm = min(all_pairs, key=lambda p: grid_distance(p[0][0], p[0][1], p[1][0], p[1][1]))
+                    marker_pairs.append((pm, rm))
+                    markers_visible_to_particle.remove(pm)
+                    markers_visible_to_robot.remove(rm)
 
-    if normalize_factor == 0.0:
-        prob_of_particles = [1 / len(weight_of_particles) for weight in weight_of_particles]
+                prob = 1.
+                for pm, rm in marker_pairs:
+                    d = grid_distance(pm[0], pm[1], rm[0], rm[1])
+                    h = diff_heading_deg(pm[2], rm[2])
+
+                    exp1 = (d**2)/(2*MARKER_TRANS_SIGMA**2)
+                    exp2 = (h**2)/(2*MARKER_ROT_SIGMA**2)
+
+                    likelihood = math.exp(-(exp1+exp2))
+                    # The line is the key to this greedy algorithm
+                    # prob *= likelihood
+                    prob *= max(likelihood, DETECTION_FAILURE_RATE*SPURIOUS_DETECTION_RATE)
+
+                # In this case, likelihood is automatically 0, and max(0, DETECTION_FAILURE_RATE) = DETECTION_FAILURE_RATE
+                prob *= (DETECTION_FAILURE_RATE**len(markers_visible_to_particle))
+                # Probability for the extra robot observation to all be spurious
+                prob *= (SPURIOUS_DETECTION_RATE**len(markers_visible_to_robot))
+                weight.append(prob)
+
+            else:
+                weight.append(0.)
     else:
-        prob_of_particles = [weight / normalize_factor for weight in weight_of_particles]
+        weight = [1.]*len(particles)
 
-    # resample
-    measured_particles = np.random.choice(particles_with_prob, \
-        size=len(particles_with_prob) - RANDOM_SAMPLE_SIZE, replace=True, p=prob_of_particles)
-    measured_particles = measured_particles.tolist()
+    norm = float(sum(weight))
 
-    random_particles = Particle.create_random(count=RANDOM_SAMPLE_SIZE, grid=grid)
+    if norm != 0:
+        weight = [i/norm for i in weight]
+        measured_particles = Particle.create_random(num_random_sample, grid)
+        measured_particles += np.random.choice(particles, PARTICLE_COUNT-num_random_sample, p=weight).tolist()
+    else:
+        measured_particles = Particle.create_random(PARTICLE_COUNT, grid)
 
-    return measured_particles + random_particles
-
-def get_probability(particle, measured_marker_list, grid):
-    marker_list = particle.read_markers(grid)
-
-    marker_pairs = [] # (robot_marker, particle_marker)
-
-    for robot_marker in measured_marker_list: 
-        smallest_dist = float('inf')
-        if len(marker_list) > 0:
-            closest_robot_marker = robot_marker
-            closest_particle_marker = marker_list[0]
-            for particle_marker in marker_list:
-                dist = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1])
-                if dist < smallest_dist:
-                    closest_robot_marker = robot_marker
-                    closest_particle_marker = particle_marker
-                    smallest_dist = dist
-            marker_pairs.append((closest_robot_marker, closest_particle_marker))
-            marker_list.remove(closest_particle_marker)
-
-    prob = 1.0
-    for robot_marker, particle_marker in marker_pairs:
-        distance = grid_distance(robot_marker[0], robot_marker[1], particle_marker[0], particle_marker[1])
-        angle = diff_heading_deg(robot_marker[2], particle_marker[2])
-        expr1 = (distance ** 2) / TRANS_SIGMA_CONSTANT
-        expr2 = (angle ** 2) / ROT_SIGMA_CONSTANT
-        prob_match = math.exp(-1 * (expr1 + expr2))
-        prob_no_match = setting.SPURIOUS_DETECTION_RATE * setting.DETECTION_FAILURE_RATE
-        prob *= max((prob_match, prob_no_match))
-
-    prob *= setting.SPURIOUS_DETECTION_RATE ** (len(measured_marker_list) - len(marker_pairs))
-
-    prob *= setting.DETECTION_FAILURE_RATE ** len(marker_list)
-
-    return prob
+    return measured_particles
