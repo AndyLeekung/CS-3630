@@ -1,3 +1,6 @@
+# Chingyeu Leekung
+# Mingyang Zhu
+
 ## If you run into an "[NSApplication _setup] unrecognized selector" problem on macOS,
 ## try uncommenting the following snippet
 
@@ -128,6 +131,9 @@ async def marker_processing(robot, camera_settings, show_diagnostic_image=False)
 
     return marker_list, annotated_image
 
+def happy_animation(robot: cozmo.robot.Robot):
+    robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
+    return
 
 async def run(robot: cozmo.robot.Robot):
 
@@ -152,7 +158,40 @@ async def run(robot: cozmo.robot.Robot):
     ###################
 
     # YOUR CODE HERE
+    converged = False
+    while not converged:
+        # Reset localization problem if the robot is picked up
+        if robot.is_picked_up():
+            pf = ParticleFilter(grid)
+            last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
+        # Obtain odometry information
+        odom = compute_odometry(robot.pose())
+        # order of setting this? not sure
+        last_pose = robot.pose()
 
+        # Obtain list of currently seen markers and their poses
+        marker_list, annotated_image = marker_processing(robot, camera_settings)
+
+        # Update the particle filter using the information above
+        m_x, m_y, m_h, m_confident = pf.update(odom, marker_list)
+
+        # Update the particle filter for the GUI
+        gui.show_particles(pf.particles)
+        gui.show_mean(m_x, m_y, m_h, m_confident)
+        gui.show_robot(robot)
+        gui.updated.set()
+
+        # Determine the robot's action based on the current state of the localization system
+        if m_confident:
+            converged = True
+            break
+
+        # Have the robot drive to the goal
+        robot.go_to_pose(goal)
+
+
+    if converged:
+        happy_animation(robot)
     ###################
 
 class CozmoThread(threading.Thread):
