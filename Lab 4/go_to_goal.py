@@ -1,5 +1,5 @@
 # Chingyeu Leekung
-# Mingyang Zhu
+# William Zhu
 
 ## If you run into an "[NSApplication _setup] unrecognized selector" problem on macOS,
 ## try uncommenting the following snippet
@@ -136,7 +136,7 @@ async def marker_processing(robot, camera_settings, show_diagnostic_image=False)
     return marker_list, annotated_image
 
 
-marker_list = []	#global to be modified by updatePF and used by explore
+marker_list = []	# global to be modified by updatePF and used by explore
 
 async def run(robot: cozmo.robot.Robot):
 
@@ -280,10 +280,10 @@ async def explore(robot):
     while True:
         await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
         while len(marker_list) == 0:
-        	robot.drive_wheels(0, 5, duration=1)
+        	robot.drive_wheels(0, 5, duration=1)	# rotate until you find a marker
 
-        await robot.drive_straight(distance_mm(marker_list[0][0] - 100), speed_mmps(30)).wait_for_completed()
-        await robot.turn_in_place(degrees(45)).wait_for_completed()
+        await robot.drive_straight(distance_mm(marker_list[0][0] - 100), speed_mmps(30)).wait_for_completed()	# drive toward marker
+        await robot.turn_in_place(degrees(45)).wait_for_completed()		# rotate off of marker
 
 
         # move_distance = random.randint(50, 150)
