@@ -18,6 +18,7 @@ import threading
 import time
 import sys
 import asyncio
+import random
 from PIL import Image
 
 from markers import detect, annotator
@@ -30,6 +31,7 @@ from particle_filter import *
 from utils import *
 from cozmo.util import degrees, distance_mm, speed_mmps
 from pprint import pprint
+from concurrent.futures import CancelledError
 
 #particle filter functionality
 class ParticleFilter:
@@ -133,10 +135,6 @@ async def marker_processing(robot, camera_settings, show_diagnostic_image=False)
 
     return marker_list, annotated_image
 
-def happy_animation(robot: cozmo.robot.Robot):
-    robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
-    return
-
 async def run(robot: cozmo.robot.Robot):
 
     global flag_odom_init, last_pose
@@ -162,21 +160,92 @@ async def run(robot: cozmo.robot.Robot):
     # YOUR CODE HERE
     goal_mm = (goal[0] * 25.4, goal[1] * 25.4, goal[2])
     goal_pose = cozmo.util.Pose(goal_mm[0], goal_mm[1], 0, angle_z=cozmo.util.Angle(degrees=goal_mm[2]))
-    converged = False
-    counter = 0
-    counter_2 = 0
-    while not converged:
-        await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+    # converged = False
+    # counter = 0
+    # counter_2 = 0
+    # while not converged:
+    #     await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
 
-        print("loop")
-        print(counter)
-        # Reset localization problem if the robot is picked up
+    #     print("loop")
+    #     print(counter)
+    #     # Reset localization problem if the robot is picked up
+    #     if robot.is_picked_up:
+    #         print("robot picked up")
+    #         pf = ParticleFilter(grid)
+    #         last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
+    #         counter = 0
+    #         continue
+    #     # Obtain odometry information
+    #     odom = compute_odometry(robot.pose)
+    #     # order of setting this? not sure
+    #     last_pose = robot.pose
+    #     pprint(last_pose)
+
+    #     # Obtain list of currently seen markers and their poses
+    #     marker_list, annotated_image = await marker_processing(robot, camera_settings)
+
+    #     # Update the particle filter using the information above
+    #     m_x, m_y, m_h, m_confident = pf.update(odom, marker_list)
+    #     print("Confident: " + str(m_confident))
+
+    #     # Update the particle filter for the GUI
+    #     gui.show_particles(pf.particles)
+    #     gui.show_mean(m_x, m_y, m_h, m_confident)
+    #     gui.show_camera_image(annotated_image)
+    #     # gui.show_robot(robot)
+    #     gui.updated.set()
+
+    #     # Determine the robot's action based on the current state of the localization system
+    #     if m_confident:
+    #         converged = True
+    #         break
+        
+    #     # if counter != 4:
+    #     move_distance = random.randint(50, 150)
+    #     turn_angle = 90
+    #     if len(marker_list) != 0:
+    #         turn_angle = random.randint(80, 100)
+    #     else:
+    #         turn_angle = random.randint(60, 200)
+    #     if len(marker_list) == 0:
+    #         await robot.drive_straight(distance_mm(move_distance), speed_mmps(30)).wait_for_completed()
+    #     await robot.turn_in_place(degrees(turn_angle)).wait_for_completed()
+        # counter = counter + 1
+        # else:
+        #     # Have the robot drive to the goal
+        #     if counter_2 != 2:
+        #         await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
+        #         counter_2 = counter_2 + 1
+        #     else:
+        #         counter_2 = 0
+        #         counter = 0
+    main_loop = asyncio.get_event_loop()
+    task = [asyncio.ensure_future(update_particle_filter(robot, camera_settings)), asyncio.ensure_future(explore(robot))]
+    try:
+        done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
+        for task in pending:
+            task.cancel()
+    except CancelledError as e:
+        print("Error happened while canceling the task: {e}".format(e=e))
+    finally:
+        await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
+        await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
+
+
+        # happy_animation(robot)
+    ###################
+
+async def update_particle_filter(robot, camera_settings):
+    global flag_odom_init, last_pose
+    global grid, gui, pf
+
+    converged = False
+    while not converged:
         if robot.is_picked_up:
             print("robot picked up")
             pf = ParticleFilter(grid)
             last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
-            counter = 0
-            continue
+
         # Obtain odometry information
         odom = compute_odometry(robot.pose)
         # order of setting this? not sure
@@ -200,28 +269,17 @@ async def run(robot: cozmo.robot.Robot):
         # Determine the robot's action based on the current state of the localization system
         if m_confident:
             converged = True
-            await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
             break
+
+async def explore(robot):
+    while True:
+        await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+        move_distance = random.randint(50, 150)
+        turn_angle = random.randint(60, 200)
         
-        if counter != 4:
-            await robot.drive_straight(distance_mm(100), speed_mmps(30), in_parallel=True).wait_for_completed()
-            await robot.turn_in_place(degrees(87), in_parallel=True).wait_for_completed()
-            counter = counter + 1
-        else:
-            # Have the robot drive to the goal
-            if counter_2 != 2:
-                await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
-                counter_2 = counter_2 + 1
-            else:
-                counter_2 = 0
-                counter = 0
-       
+        await robot.drive_straight(distance_mm(move_distance), speed_mmps(30)).wait_for_completed()
+        await robot.turn_in_place(degrees(turn_angle)).wait_for_completed()
 
-
-    if converged:
-        print("converged")
-        # happy_animation(robot)
-    ###################
 
 class CozmoThread(threading.Thread):
 
