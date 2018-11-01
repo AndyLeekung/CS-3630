@@ -135,9 +135,12 @@ async def marker_processing(robot, camera_settings, show_diagnostic_image=False)
 
     return marker_list, annotated_image
 
+
+marker_list = []	#global to be modified by updatePF and used by explore
+
 async def run(robot: cozmo.robot.Robot):
 
-    global flag_odom_init, last_pose
+    global flag_odom_init, last_pose, marker_list
     global grid, gui, pf
 
     # start streaming
@@ -238,6 +241,7 @@ async def run(robot: cozmo.robot.Robot):
 async def update_particle_filter(robot, camera_settings):
     global flag_odom_init, last_pose
     global grid, gui, pf
+    global marker_list
 
     converged = False
     while not converged:
@@ -272,13 +276,21 @@ async def update_particle_filter(robot, camera_settings):
             break
 
 async def explore(robot):
+	global marker_list
     while True:
         await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
-        move_distance = random.randint(50, 150)
-        turn_angle = random.randint(60, 200)
+        while len(marker_list) == 0:
+        	robot.drive_wheels(0, 5, duration=1)
+
+        await robot.drive_straight(distance_mm(marker_list[0][0] - 100), speed_mmps(30)).wait_for_completed()
+        await robot.turn_in_place(degrees(45)).wait_for_completed()
+
+
+        # move_distance = random.randint(50, 150)
+        # turn_angle = random.randint(60, 200)
         
-        await robot.drive_straight(distance_mm(move_distance), speed_mmps(30)).wait_for_completed()
-        await robot.turn_in_place(degrees(turn_angle)).wait_for_completed()
+        # await robot.drive_straight(distance_mm(move_distance), speed_mmps(30)).wait_for_completed()
+        # await robot.turn_in_place(degrees(turn_angle)).wait_for_completed()
 
 
 class CozmoThread(threading.Thread):
