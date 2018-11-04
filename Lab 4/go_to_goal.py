@@ -56,6 +56,7 @@ class ParticleFilter:
 # tmp cache
 last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
 flag_odom_init = False
+converged = False
 
 # goal location for the robot to drive to, (x, y, theta)
 goal = (6,10,0)
@@ -141,13 +142,13 @@ marker_list = []	# global to be modified by updatePF and used by explore
 async def run(robot: cozmo.robot.Robot):
 
     global flag_odom_init, last_pose, marker_list
-    global grid, gui, pf
+    global grid, gui, pf, converged
 
     # start streaming
     robot.camera.image_stream_enabled = True
     robot.camera.color_image_enabled = False
     robot.camera.enable_auto_exposure()
-    await robot.set_head_angle(cozmo.util.degrees(0)).wait_for_completed()
+    await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
 
     # Obtain the camera intrinsics matrix
     fx, fy = robot.camera.config.focal_length.x_y
@@ -161,77 +162,25 @@ async def run(robot: cozmo.robot.Robot):
     ###################
 
     # YOUR CODE HERE
+    print("run")
     goal_mm = (goal[0] * 25.4, goal[1] * 25.4, goal[2])
     goal_pose = cozmo.util.Pose(goal_mm[0], goal_mm[1], 0, angle_z=cozmo.util.Angle(degrees=goal_mm[2]))
-    # converged = False
-    # counter = 0
-    # counter_2 = 0
-    # while not converged:
-    #     await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
 
-    #     print("loop")
-    #     print(counter)
-    #     # Reset localization problem if the robot is picked up
-    #     if robot.is_picked_up:
-    #         print("robot picked up")
-    #         pf = ParticleFilter(grid)
-    #         last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
-    #         counter = 0
-    #         continue
-    #     # Obtain odometry information
-    #     odom = compute_odometry(robot.pose)
-    #     # order of setting this? not sure
-    #     last_pose = robot.pose
-    #     pprint(last_pose)
-
-    #     # Obtain list of currently seen markers and their poses
-    #     marker_list, annotated_image = await marker_processing(robot, camera_settings)
-
-    #     # Update the particle filter using the information above
-    #     m_x, m_y, m_h, m_confident = pf.update(odom, marker_list)
-    #     print("Confident: " + str(m_confident))
-
-    #     # Update the particle filter for the GUI
-    #     gui.show_particles(pf.particles)
-    #     gui.show_mean(m_x, m_y, m_h, m_confident)
-    #     gui.show_camera_image(annotated_image)
-    #     # gui.show_robot(robot)
-    #     gui.updated.set()
-
-    #     # Determine the robot's action based on the current state of the localization system
-    #     if m_confident:
-    #         converged = True
-    #         break
-        
-    #     # if counter != 4:
-    #     move_distance = random.randint(50, 150)
-    #     turn_angle = 90
-    #     if len(marker_list) != 0:
-    #         turn_angle = random.randint(80, 100)
-    #     else:
-    #         turn_angle = random.randint(60, 200)
-    #     if len(marker_list) == 0:
-    #         await robot.drive_straight(distance_mm(move_distance), speed_mmps(30)).wait_for_completed()
-    #     await robot.turn_in_place(degrees(turn_angle)).wait_for_completed()
-        # counter = counter + 1
-        # else:
-        #     # Have the robot drive to the goal
-        #     if counter_2 != 2:
-        #         await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
-        #         counter_2 = counter_2 + 1
-        #     else:
-        #         counter_2 = 0
-        #         counter = 0
     main_loop = asyncio.get_event_loop()
-    task = [asyncio.ensure_future(update_particle_filter(robot, camera_settings)), asyncio.ensure_future(explore(robot))]
+    task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
     try:
-        done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
-        for task in pending:
-            task.cancel()
+        # done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
+        await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
+        # await asyncio.gather(asyncio.ensure_future(update_particle_filter(robot, camera_settings)), asyncio.ensure_future(explore(robot)))
+        # for task in pending:
+        #     task.cancel()
     except CancelledError as e:
         print("Error happened while canceling the task: {e}".format(e=e))
     finally:
-        await robot.go_to_pose(goal_pose, relative_to_robot=False).wait_for_completed()
+        print("Tasks finished")
+        await robot.go_to_pose(goal_pose, relative_to_robot=True).wait_for_completed()
+        pprint("Robot pose: " + str(robot.pose))
+        pprint("Goal pose: " + str(goal_pose))
         await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
 
 
@@ -242,9 +191,9 @@ async def update_particle_filter(robot, camera_settings):
     global flag_odom_init, last_pose
     global grid, gui, pf
     global marker_list
+    global converged
 
-    converged = False
-    while not converged:
+    while True:
         if robot.is_picked_up:
             print("robot picked up")
             pf = ParticleFilter(grid)
@@ -254,14 +203,14 @@ async def update_particle_filter(robot, camera_settings):
         odom = compute_odometry(robot.pose)
         # order of setting this? not sure
         last_pose = robot.pose
-        pprint(last_pose)
+        # pprint(last_pose)
 
         # Obtain list of currently seen markers and their poses
         marker_list, annotated_image = await marker_processing(robot, camera_settings)
 
         # Update the particle filter using the information above
         m_x, m_y, m_h, m_confident = pf.update(odom, marker_list)
-        print("Confident: " + str(m_confident))
+        # print("Confident: " + str(m_confident))
 
         # Update the particle filter for the GUI
         gui.show_particles(pf.particles)
@@ -276,21 +225,28 @@ async def update_particle_filter(robot, camera_settings):
             break
 
 async def explore(robot):
-	global marker_list
-    while True:
+    global marker_list
+    global converged
+    while not converged:
         await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
-        while len(marker_list) == 0:
-        	robot.drive_wheels(0, 5, duration=1)	# rotate until you find a marker
+        await robot.drive_wheels(-25, 50, duration=2.0)
+        # await robot.drive_straight(distance_mm(100), speed_mmps(50)).wait_for_completed()
+        # print("explore")
+        # if robot.is_picked_up:
+        #     continue
+        # print(str(converged))
+        # await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+        # while len(marker_list) == 0:
+        #     print("marker list is 0")
+        #     await robot.drive_wheels(-25, 25, duration=0.25)	# rotate until you find a marker
+        # await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
 
-        await robot.drive_straight(distance_mm(marker_list[0][0] - 100), speed_mmps(30)).wait_for_completed()	# drive toward marker
-        await robot.turn_in_place(degrees(45)).wait_for_completed()		# rotate off of marker
-
-
-        # move_distance = random.randint(50, 150)
-        # turn_angle = random.randint(60, 200)
+        # print("Marker list: " + str(marker_list[0][0] * grid.scale))
+        # await robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 200), speed_mmps(50)).wait_for_completed()	# drive toward marker
+        # await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
         
-        # await robot.drive_straight(distance_mm(move_distance), speed_mmps(30)).wait_for_completed()
-        # await robot.turn_in_place(degrees(turn_angle)).wait_for_completed()
+        # await robot.turn_in_place(degrees(45)).wait_for_completed()		# rotate off of marker
+    print("explore is done")
 
 
 class CozmoThread(threading.Thread):
