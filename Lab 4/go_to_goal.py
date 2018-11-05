@@ -260,11 +260,11 @@ async def explore(robot):
         if len(marker_list) >= 1 and marker_list[0][0] > 2.0:
             print("Marker list: " + str(marker_list[0][0] * grid.scale))
             if marker_list[0][0] * grid.scale - 200 < 0:
-                robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 200), speed_mmps(100)).wait_for_completed()
+                await robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 200), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
             elif marker_list[0][0] * grid.scale - 200 > 200:
-                robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 400), speed_mmps(100)).wait_for_completed()
+                await robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 400), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
             else:
