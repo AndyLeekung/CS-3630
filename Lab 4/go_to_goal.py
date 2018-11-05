@@ -168,6 +168,7 @@ async def run(robot: cozmo.robot.Robot):
 
     main_loop = asyncio.get_event_loop()
     task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
+
     try:
         # done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
         await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
@@ -188,9 +189,8 @@ async def run(robot: cozmo.robot.Robot):
         dif_y = goal[1] - m_y
         dif_x = goal[0] - m_x
         dist = math.sqrt(dif_y**2 + dif_x**2) * 25.4
-
         turn_angle = diff_heading_deg(arc, m_h)
-        await robot.turn_in_place(cozmo.util.degrees(-turn_angle)).wait_for_completed()
+        await robot.turn_in_place(cozmo.util.degrees(turn_angle - 20)).wait_for_completed()
         await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
         final_angle = diff_heading_deg(m_h + turn_angle, goal[2])
         await robot.turn_in_place(cozmo.util.degrees(final_angle)).wait_for_completed()
@@ -269,11 +269,11 @@ async def explore(robot):
             # continue
         if len(marker_list) >= 1 and marker_list[0][0] > 2.0:
             print("Marker list: " + str(marker_list[0][0] * grid.scale))
-            if marker_list[0][0] * grid.scale - 200 < 0:
+            if marker_list[0][0] * grid.scale - 180 < 0:
                 await robot.drive_straight(distance_mm(-50), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
-            elif marker_list[0][0] * grid.scale - 200 > 200:
+            elif marker_list[0][0] * grid.scale - 200 > 220:
                 await robot.drive_straight(distance_mm(50), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
