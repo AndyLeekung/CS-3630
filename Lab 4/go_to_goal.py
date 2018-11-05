@@ -178,10 +178,37 @@ async def run(robot: cozmo.robot.Robot):
         print("Error happened while canceling the task: {e}".format(e=e))
     finally:
         print("Tasks finished")
-        await robot.go_to_pose(goal_pose, relative_to_robot=True).wait_for_completed()
-        pprint("Robot pose: " + str(robot.pose))
-        pprint("Goal pose: " + str(goal_pose))
+
+        time.sleep(2) 
+        m_x, m_y, m_h, m_confident = compute_mean_pose(pf.particles)
+
+        arc = math.degrees(math.atan2(goal[1] - m_y, goal[0] - m_x))
+
+        dist = math.sqrt(dif_y**2 + dif_x**2) * 25.4
+
+        turn_angle = diff_heading_deg(arc, m_h)
+        await robot.turn_in_place(cozmo.util.degrees(turn_angle)).wait_for_completed()
+        await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
         await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
+
+
+
+        # pprint("robot pose: " + str(robot.pose))
+        # pprint("goal pose: " + str(goal))
+        # angle_to_goal = np.arctan( (goal[1] * 25.4 - robot.pose.position.y)/(goal[0] * 25.4 - robot.pose.position.x) ) * 360
+
+        # await robot.turn_in_place(angle_to_goal).wait_for_completed()
+        # await robot.drive_straight( ((goal[1] * 25.4)**2 - robot_pose.position.y**2) ** 1/2 ).wait_for_completed
+
+        # await robot.turn_in_place(np.arctan( (goal[1] * 25.4 - robot_pose.position.y)/(goal[0] * 25.4 - robot_pose.position.x) ))
+
+        # await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
+
+
+
+        # await robot.go_to_pose(goal_pose, relative_to_robot=True).wait_for_completed()
+        # pprint("Robot pose: " + str(robot.pose))
+        # pprint("Goal pose: " + str(goal_pose))
 
 
         # happy_animation(robot)
@@ -228,8 +255,27 @@ async def explore(robot):
     global marker_list
     global converged
     while not converged:
-        await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
-        await robot.drive_wheels(-25, 50, duration=2.0)
+        if robot.is_picked_up:
+            continue
+        if len(marker_list) >= 1 and marker_list[0][0] > 2.0:
+            print("Marker list: " + str(marker_list[0][0] * grid.scale))
+            if marker_list[0][0] * grid.scale - 200 < 0:
+                robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 200), speed_mmps(100)).wait_for_completed()
+                await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+                await robot.turn_in_place(degrees(60)).wait_for_completed()
+            elif marker_list[0][0] * grid.scale - 200 > 200:
+                robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 400), speed_mmps(100)).wait_for_completed()
+                await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+                await robot.turn_in_place(degrees(60)).wait_for_completed()
+            else:
+                await robot.drive_wheels(-25, 25, duration=0.1)
+        else:
+            print("marker list is 0")
+            await robot.drive_wheels(-25, 25, duration=0.1)
+
+
+
+
         # await robot.drive_straight(distance_mm(100), speed_mmps(50)).wait_for_completed()
         # print("explore")
         # if robot.is_picked_up:
