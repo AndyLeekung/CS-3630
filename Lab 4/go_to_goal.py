@@ -180,15 +180,21 @@ async def run(robot: cozmo.robot.Robot):
         print("Tasks finished")
 
         time.sleep(2) 
+        robot.stop_all_motors()
         m_x, m_y, m_h, m_confident = compute_mean_pose(pf.particles)
 
         arc = math.degrees(math.atan2(goal[1] - m_y, goal[0] - m_x))
 
+        dif_y = goal[1] - m_y
+        dif_x = goal[0] - m_x
         dist = math.sqrt(dif_y**2 + dif_x**2) * 25.4
 
         turn_angle = diff_heading_deg(arc, m_h)
-        await robot.turn_in_place(cozmo.util.degrees(turn_angle)).wait_for_completed()
+        await robot.turn_in_place(cozmo.util.degrees(-turn_angle)).wait_for_completed()
         await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
+        final_angle = diff_heading_deg(m_h + turn_angle, goal[2])
+        await robot.turn_in_place(cozmo.util.degrees(final_angle)).wait_for_completed()
+
         await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
 
 
@@ -225,6 +231,9 @@ async def update_particle_filter(robot, camera_settings):
             print("robot picked up")
             pf = ParticleFilter(grid)
             last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
+            converged = False
+            time.sleep(2)
+            # continue
 
         # Obtain odometry information
         odom = compute_odometry(robot.pose)
@@ -249,22 +258,23 @@ async def update_particle_filter(robot, camera_settings):
         # Determine the robot's action based on the current state of the localization system
         if m_confident:
             converged = True
-            break
 
 async def explore(robot):
     global marker_list
     global converged
     while not converged:
         if robot.is_picked_up:
-            continue
+            print("explore, picked up")
+            time.sleep(2)
+            # continue
         if len(marker_list) >= 1 and marker_list[0][0] > 2.0:
             print("Marker list: " + str(marker_list[0][0] * grid.scale))
             if marker_list[0][0] * grid.scale - 200 < 0:
-                await robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 200), speed_mmps(100)).wait_for_completed()
+                await robot.drive_straight(distance_mm(-50), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
             elif marker_list[0][0] * grid.scale - 200 > 200:
-                await robot.drive_straight(distance_mm(marker_list[0][0] * grid.scale - 400), speed_mmps(100)).wait_for_completed()
+                await robot.drive_straight(distance_mm(50), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
             else:
