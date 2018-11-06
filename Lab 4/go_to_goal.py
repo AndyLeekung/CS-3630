@@ -57,6 +57,7 @@ class ParticleFilter:
 last_pose = cozmo.util.Pose(0,0,0,angle_z=cozmo.util.Angle(degrees=0))
 flag_odom_init = False
 converged = False
+reached_goal = False
 
 # goal location for the robot to drive to, (x, y, theta)
 goal = (6,10,0)
@@ -142,7 +143,7 @@ marker_list = []	# global to be modified by updatePF and used by explore
 async def run(robot: cozmo.robot.Robot):
 
     global flag_odom_init, last_pose, marker_list
-    global grid, gui, pf, converged
+    global grid, gui, pf, converged, reached_goal
 
     # start streaming
     robot.camera.image_stream_enabled = True
@@ -163,8 +164,9 @@ async def run(robot: cozmo.robot.Robot):
 
     # YOUR CODE HERE
     print("run")
-    task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
-    await main(robot, task, camera_settings)
+    # task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
+    while not reached_goal:
+        await main(robot, camera_settings)
 
 
     # try:
@@ -232,9 +234,12 @@ async def run(robot: cozmo.robot.Robot):
         # happy_animation(robot)
     ###################
 
-async def main(robot, task, camera_settings):
-    global converged
+async def main(robot, camera_settings):
+    global converged, reached_goal
     reset = False
+    await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+    
+    task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
     try:
         # done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
         await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
@@ -260,7 +265,7 @@ async def main(robot, task, camera_settings):
         if robot.is_picked_up:
             converged = False
             reset = True
-            await main(robot, task, camera_settings)
+            # await main(robot, task, camera_settings)
             return
         else:
             await robot.turn_in_place(cozmo.util.degrees(turn_angle - 20)).wait_for_completed()
@@ -268,10 +273,11 @@ async def main(robot, task, camera_settings):
         if robot.is_picked_up:
             converged = False
             reset = True
-            await main(robot, task, camera_settings)
+            task[1].cancel()
+            # await main(robot, task, camera_settings)
             return
-        elif reset:
-            return
+        # elif reset:
+        #     return
         else:
             await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
         
@@ -280,10 +286,11 @@ async def main(robot, task, camera_settings):
         if robot.is_picked_up:
             converged = False
             reset = True
-            await main(robot, task, camera_settings)
+            task[1].cancel()
+            # await main(robot, task, camera_settings)
             return
-        elif reset:
-            return
+        # elif reset:
+        #     return
         else:
             print(reset)
             await robot.turn_in_place(cozmo.util.degrees(final_angle)).wait_for_completed()
@@ -291,13 +298,15 @@ async def main(robot, task, camera_settings):
         if robot.is_picked_up:
             converged = False
             reset = True
-            await main(robot, task, camera_settings)
+            task[1].cancel()
+            # await main(robot, task, camera_settings)
             return
-        elif reset:
-            return
+        # elif reset:
+        #     return
         else:
             print(reset)
             await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
+            reached_goal = True
 
 
 async def update_particle_filter(robot, camera_settings):
@@ -342,14 +351,16 @@ async def update_particle_filter(robot, camera_settings):
 async def explore(robot):
     global marker_list
     global converged
+    print("explore")
     while not converged:
+        # await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
         if robot.is_picked_up:
             print("explore, picked up")
             time.sleep(2)
             # continue
         if len(marker_list) >= 1 and marker_list[0][0] > 2.0:
-            print("Marker list: " + str(marker_list[0][0] * grid.scale))
-            if marker_list[0][0] * grid.scale - 180 < 0:
+            # print("Marker list: " + str(marker_list[0][0] * grid.scale))
+            if marker_list[0][0] * grid.scale - 160 < 0:
                 await robot.drive_straight(distance_mm(-35), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
@@ -360,7 +371,8 @@ async def explore(robot):
             else:
                 await robot.drive_wheels(-25, 25, duration=0.1)
         else:
-            print("marker list is 0")
+            # print("marker list is 0")
+            # await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
             await robot.drive_wheels(-25, 25, duration=0.1)
 
 
