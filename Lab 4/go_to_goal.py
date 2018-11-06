@@ -279,7 +279,7 @@ async def main(robot, camera_settings):
         # elif reset:
         #     return
         else:
-            await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
+            await robot.drive_straight(cozmo.util.distance_mm(dist - 10), cozmo.util.speed_mmps(40)).wait_for_completed()
         
         final_angle = diff_heading_deg(m_h + turn_angle, goal[2])
 
