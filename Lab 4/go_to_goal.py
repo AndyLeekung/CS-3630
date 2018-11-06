@@ -163,39 +163,51 @@ async def run(robot: cozmo.robot.Robot):
 
     # YOUR CODE HERE
     print("run")
-    goal_mm = (goal[0] * 25.4, goal[1] * 25.4, goal[2])
-    goal_pose = cozmo.util.Pose(goal_mm[0], goal_mm[1], 0, angle_z=cozmo.util.Angle(degrees=goal_mm[2]))
-
-    main_loop = asyncio.get_event_loop()
     task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
+    await main(robot, task, camera_settings)
 
-    try:
-        # done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
-        await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
-        # await asyncio.gather(asyncio.ensure_future(update_particle_filter(robot, camera_settings)), asyncio.ensure_future(explore(robot)))
-        # for task in pending:
-        #     task.cancel()
-    except CancelledError as e:
-        print("Error happened while canceling the task: {e}".format(e=e))
-    finally:
-        print("Tasks finished")
 
-        time.sleep(2) 
-        robot.stop_all_motors()
-        m_x, m_y, m_h, m_confident = compute_mean_pose(pf.particles)
+    # try:
+    #     # done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
+    #     await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
+    #     # await asyncio.gather(asyncio.ensure_future(update_particle_filter(robot, camera_settings)), asyncio.ensure_future(explore(robot)))
+    #     # for task in pending:
+    #     #     task.cancel()
+    # except CancelledError as e:
+    #     print("Error happened while canceling the task: {e}".format(e=e))
+    # finally:
+    #     print("Tasks finished")
 
-        arc = math.degrees(math.atan2(goal[1] - m_y, goal[0] - m_x))
+    #     time.sleep(2) 
+    #     robot.stop_all_motors()
+    #     m_x, m_y, m_h, m_confident = compute_mean_pose(pf.particles)
 
-        dif_y = goal[1] - m_y
-        dif_x = goal[0] - m_x
-        dist = math.sqrt(dif_y**2 + dif_x**2) * 25.4
-        turn_angle = diff_heading_deg(arc, m_h)
-        await robot.turn_in_place(cozmo.util.degrees(turn_angle - 20)).wait_for_completed()
-        await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
-        final_angle = diff_heading_deg(m_h + turn_angle, goal[2])
-        await robot.turn_in_place(cozmo.util.degrees(final_angle)).wait_for_completed()
+    #     arc = math.degrees(math.atan2(goal[1] - m_y, goal[0] - m_x))
 
-        await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
+    #     dif_y = goal[1] - m_y
+    #     dif_x = goal[0] - m_x
+    #     dist = math.sqrt(dif_y**2 + dif_x**2) * 25.4
+    #     turn_angle = diff_heading_deg(arc, m_h)
+
+    #     if (robot.is_picked_up):
+    #         converged = False
+
+    #     await robot.turn_in_place(cozmo.util.degrees(turn_angle - 20)).wait_for_completed()
+
+    #     if (robot.is_picked_up):
+    #         converged = False
+
+    #     await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
+    #     final_angle = diff_heading_deg(m_h + turn_angle, goal[2])
+
+    #     if (robot.is_picked_up):
+    #         converged = False
+    #     await robot.turn_in_place(cozmo.util.degrees(final_angle)).wait_for_completed()
+
+    #     if (robot.is_picked_up):
+    #         converged = False
+
+    #     await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
 
 
 
@@ -219,6 +231,60 @@ async def run(robot: cozmo.robot.Robot):
 
         # happy_animation(robot)
     ###################
+
+async def main(robot, task, camera_settings):
+    try:
+        # done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
+        await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
+        # await asyncio.gather(asyncio.ensure_future(update_particle_filter(robot, camera_settings)), asyncio.ensure_future(explore(robot)))
+        # for task in pending:
+        #     task.cancel()
+    except CancelledError as e:
+        print("Error happened while canceling the task: {e}".format(e=e))
+    finally:
+        print("Tasks finished")
+
+        time.sleep(2) 
+        robot.stop_all_motors()
+        m_x, m_y, m_h, m_confident = compute_mean_pose(pf.particles)
+
+        arc = math.degrees(math.atan2(goal[1] - m_y, goal[0] - m_x))
+
+        dif_y = goal[1] - m_y
+        dif_x = goal[0] - m_x
+        dist = math.sqrt(dif_y**2 + dif_x**2) * 25.4
+        turn_angle = diff_heading_deg(arc, m_h)
+
+        if robot.is_picked_up:
+            converged = False
+            await main(robot, task, camera_settings)
+            return
+        else:
+            await robot.turn_in_place(cozmo.util.degrees(turn_angle - 20)).wait_for_completed()
+
+        if robot.is_picked_up:
+            converged = False
+            await main(robot, task, camera_settings)
+            return
+        else:
+            await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
+        
+        final_angle = diff_heading_deg(m_h + turn_angle, goal[2])
+
+        if robot.is_picked_up:
+            converged = False
+            await main(robot, task, camera_settings)
+            return
+        else:
+            await robot.turn_in_place(cozmo.util.degrees(final_angle)).wait_for_completed()
+
+        if robot.is_picked_up:
+            converged = False
+            await main(robot, task, camera_settings)
+            return
+        else:
+            await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
+
 
 async def update_particle_filter(robot, camera_settings):
     global flag_odom_init, last_pose
@@ -270,11 +336,11 @@ async def explore(robot):
         if len(marker_list) >= 1 and marker_list[0][0] > 2.0:
             print("Marker list: " + str(marker_list[0][0] * grid.scale))
             if marker_list[0][0] * grid.scale - 180 < 0:
-                await robot.drive_straight(distance_mm(-50), speed_mmps(100)).wait_for_completed()
+                await robot.drive_straight(distance_mm(-35), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
             elif marker_list[0][0] * grid.scale - 200 > 220:
-                await robot.drive_straight(distance_mm(50), speed_mmps(100)).wait_for_completed()
+                await robot.drive_straight(distance_mm(75), speed_mmps(100)).wait_for_completed()
                 await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
                 await robot.turn_in_place(degrees(60)).wait_for_completed()
             else:
