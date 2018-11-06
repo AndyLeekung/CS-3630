@@ -233,6 +233,8 @@ async def run(robot: cozmo.robot.Robot):
     ###################
 
 async def main(robot, task, camera_settings):
+    global converged
+    reset = False
     try:
         # done, pending = main_loop.run_until_complete(asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED))
         await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
@@ -257,6 +259,7 @@ async def main(robot, task, camera_settings):
 
         if robot.is_picked_up:
             converged = False
+            reset = True
             await main(robot, task, camera_settings)
             return
         else:
@@ -264,7 +267,10 @@ async def main(robot, task, camera_settings):
 
         if robot.is_picked_up:
             converged = False
+            reset = True
             await main(robot, task, camera_settings)
+            return
+        elif reset:
             return
         else:
             await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
@@ -273,16 +279,24 @@ async def main(robot, task, camera_settings):
 
         if robot.is_picked_up:
             converged = False
+            reset = True
             await main(robot, task, camera_settings)
             return
+        elif reset:
+            return
         else:
+            print(reset)
             await robot.turn_in_place(cozmo.util.degrees(final_angle)).wait_for_completed()
 
         if robot.is_picked_up:
             converged = False
+            reset = True
             await main(robot, task, camera_settings)
             return
+        elif reset:
+            return
         else:
+            print(reset)
             await robot.play_anim_trigger(cozmo.anim.Triggers.CodeLabSurprise).wait_for_completed()
 
 
