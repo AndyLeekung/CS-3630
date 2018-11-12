@@ -26,7 +26,7 @@ def step_from_to(node0, node1, limit=75):
         return node1
     difference = ((node1.x - node0.x), (node1.y - node0.y))
     diffAngle = np.arctan2(difference[1], difference[0])
-    new_node = Node((np.cos(diffAngle) * limit), (np.sin(diffAngle) * limit))
+    new_node = Node(node0.x + (np.cos(diffAngle) * limit), node0.y + (np.sin(diffAngle) * limit))
     return new_node
 
     ############################################################################
@@ -75,7 +75,7 @@ def RRT(cmap, start):
             if get_dist(node, rand_node) < minDist:
                 nearest_node = node
                 minDist = get_dist(rand_node, nearest_node)
-        add_path(rand_node, nearest_node)
+        cmap.add_path(rand_node, nearest_node)
         ########################################################################
         time.sleep(0.01)
         cmap.add_path(nearest_node, rand_node)
