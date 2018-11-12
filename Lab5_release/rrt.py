@@ -7,6 +7,8 @@ from cmap import *
 from gui import *
 from utils import *
 
+import random
+
 MAX_NODES = 20000
 
 
@@ -19,7 +21,14 @@ def step_from_to(node0, node1, limit=75):
     #    limit units at most
     # 3. Hint: please consider using np.arctan2 function to get vector angle
     # 4. Note: remember always return a Node object
-    return node1
+    dist = get_dist(node0, node1)
+    if dist < limit:
+        return node1
+    difference = ((node1.x - node0.x), (node1.y - node0.y))
+    diffAngle = np.arctan2(difference[1], difference[0])
+    new_node = Node((np.cos(diffAngle) * limit), (np.sin(diffAngle) * limit))
+    return new_node
+
     ############################################################################
 
 
@@ -33,6 +42,17 @@ def node_generator(cmap):
     # 3. Note: remember always return a Node object
     pass
     ############################################################################
+    probOfGoal = random.randint(1, 101)
+    if profOfGoal < 6:
+        rand_node = local_goal_pos     # idk this part, 5% of the time the rand node is set to goal
+    else:
+        width = random.randint(1, cmap.width)
+        height = random.randint(1, cmap.height)
+        rand_node = Node((width, height))
+        while not cmap.is_inbound(rand_node) or cmap.is_inside_obstacles(rand_node):
+            width = random.randint(1, cmap.width)
+            height = random.randint(1, cmap.height)
+            rand_node = Node((width, height))
     return rand_node
 
 
@@ -48,9 +68,14 @@ def RRT(cmap, start):
         # 3. Limit the distance RRT can move
         # 4. Add one path from nearest node to random node
         #
-        rand_node = None
+        rand_node = cmap.get_random_valid_node()
         nearest_node = None
-        pass
+        minDist = 100000
+        for node in cmap.get_nodes():
+            if get_dist(node, rand_node) < minDist:
+                nearest_node = node
+                minDist = get_dist(rand_node, nearest_node)
+        add_path(rand_node, nearest_node)
         ########################################################################
         time.sleep(0.01)
         cmap.add_path(nearest_node, rand_node)
