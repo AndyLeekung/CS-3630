@@ -10,7 +10,7 @@ from utils import *
 import random
 
 MAX_NODES = 20000
-
+INCH_TO_MM = 25.4
 
 def step_from_to(node0, node1, limit=75):
     ########################################################################
@@ -104,6 +104,10 @@ async def CozmoPlanning(robot: cozmo.robot.Robot):
     ########################################################################
     # TODO: please enter your code below.
     # Description of function provided in instructions
+    start_node = Node((6 * INCH_TO_MM, 10 * INCH_TO_MM))
+    cmap.set_start(start_node)
+    
+
 
 
 def get_global_node(local_angle, local_origin, node):
@@ -240,7 +244,7 @@ if __name__ == '__main__':
         robot_thread = RobotThread()
         robot_thread.start()
     else:
-        cmap = CozMap("maps/map5.json", node_generator)
+        cmap = CozMap("maps/map3.json", node_generator)
         sim = RRTThread()
         sim.start()
     visualizer = Visualizer(cmap)
