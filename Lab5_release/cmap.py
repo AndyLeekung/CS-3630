@@ -251,25 +251,6 @@ class CozMap:
         
         return final_path
 
-    def is_solved(self):
-        """Return whether a solution has been found
-        """
-        return self._solved
-
-    def is_solution_valid(self):
-        """Check if a valid has been found
-        """
-        if not self._solved:
-            return False
-        cur = None
-        for goal in self._goals:
-            cur = goal
-            while cur.parent is not None:
-                cur = cur.parent
-            if cur == self._start:
-                return True
-        return False
-
     def reset(self):
         """Reset the grid so that RRT can run again
         """

@@ -42,16 +42,17 @@ def node_generator(cmap):
     # 3. Note: remember always return a Node object
     pass
     ############################################################################
-    probOfGoal = random.randint(1, 101)
-    if profOfGoal < 6:
-        rand_node = local_goal_pos     # idk this part, 5% of the time the rand node is set to goal
+    probOfGoal = random.randint(0, 100)
+    if probOfGoal < 6 and len(cmap.get_goals()) > 0:
+        goal_node = cmap.get_goals()[0]
+        rand_node = Node((goal_node.x, goal_node.y))  # idk this part, 5% of the time the rand node is set to goal
     else:
-        width = random.randint(1, cmap.width)
-        height = random.randint(1, cmap.height)
+        width = random.randint(0, cmap.width)
+        height = random.randint(0, cmap.height)
         rand_node = Node((width, height))
         while not cmap.is_inbound(rand_node) or cmap.is_inside_obstacles(rand_node):
-            width = random.randint(1, cmap.width)
-            height = random.randint(1, cmap.height)
+            width = random.randint(0, cmap.width)
+            height = random.randint(0, cmap.height)
             rand_node = Node((width, height))
     return rand_node
 
@@ -72,19 +73,23 @@ def RRT(cmap, start):
         nearest_node = None
         minDist = 100000
         for node in cmap.get_nodes():
-            if get_dist(node, rand_node) < minDist:
+            dist = get_dist(node, rand_node)
+            if dist < minDist:
                 nearest_node = node
-                minDist = get_dist(rand_node, nearest_node)
-        cmap.add_path(rand_node, nearest_node)
+                minDist = dist
+        # cmap.add_path(rand_node, nearest_node)
         ########################################################################
         time.sleep(0.01)
         cmap.add_path(nearest_node, rand_node)
         if cmap.is_solved():
             break
 
+    print("out of loop")
+
     path = cmap.get_path()
     smoothed_path = cmap.get_smooth_path()
 
+    print("out of loop")
     if cmap.is_solution_valid():
         print("A valid solution has been found :-) ")
         print("Nodes created: ", cmap.get_num_nodes())
@@ -234,7 +239,7 @@ if __name__ == '__main__':
         robot_thread = RobotThread()
         robot_thread.start()
     else:
-        cmap = CozMap("maps/map2.json", node_generator)
+        cmap = CozMap("maps/map6.json", node_generator)
         sim = RRTThread()
         sim.start()
     visualizer = Visualizer(cmap)
