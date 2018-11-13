@@ -84,12 +84,9 @@ def RRT(cmap, start):
         if cmap.is_solved():
             break
 
-    print("out of loop")
-
     path = cmap.get_path()
     smoothed_path = cmap.get_smooth_path()
 
-    print("out of loop")
     if cmap.is_solution_valid():
         print("A valid solution has been found :-) ")
         print("Nodes created: ", cmap.get_num_nodes())
