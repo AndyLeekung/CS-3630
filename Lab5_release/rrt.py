@@ -119,7 +119,11 @@ def get_global_node(local_angle, local_origin, node):
     """
     ########################################################################
     # TODO: please enter your code below.
-    new_node = None
+    cos = math.cos(local_angle)
+    sin = math.sin(local_angle)
+    newX = node.x * cos - node.x * sin
+    newY = node.y * sin + node.y * cos
+    new_node = Node((newX + local_origin.x, newY + local_origin.y))
     return new_node
 
 
