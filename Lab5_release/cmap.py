@@ -3,6 +3,7 @@ import threading
 
 from utils import *
 
+import random
 
 class CozMap:
     """Class representing a map for search algorithms.
@@ -230,6 +231,23 @@ class CozMap:
         ############################################################################
         # TODO: please enter your code below.
         path = self.get_path()
+
+        iterations = 40
+        for i in range(iterations):
+            size = len(path)
+            indx1 = random.randint(0, size - 1)
+            indx2 = random.randint(0, size - 1)
+            if indx1 == indx2:
+                break
+            min_indx = min((indx1, indx2)) # closer to start
+            max_indx = max((indx1, indx2)) # closer to goal
+
+            start_node = path[min_indx]
+            goal_node = path[max_indx]
+            if not self.is_collision_with_obstacles((start_node, goal_node)):
+                goal_node.parent = start_node
+                path = path[0:min_indx + 1] + path[max_indx:size + 1]
+
         return path
 
     def get_path(self):
