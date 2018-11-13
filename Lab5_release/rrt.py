@@ -42,10 +42,10 @@ def node_generator(cmap):
     # 3. Note: remember always return a Node object
     pass
     ############################################################################
-    probOfGoal = random.randint(0, 100)
+    probOfGoal = random.randint(0, 101)
     if probOfGoal < 6 and len(cmap.get_goals()) > 0:
         goal_node = cmap.get_goals()[0]
-        rand_node = Node((goal_node.x, goal_node.y))  # idk this part, 5% of the time the rand node is set to goal
+        rand_node = Node((goal_node.x, goal_node.y))
     else:
         width = random.randint(0, cmap.width)
         height = random.randint(0, cmap.height)
