@@ -11,6 +11,7 @@ import random
 
 MAX_NODES = 20000
 INCH_TO_MM = 25.4
+goal_center_found = False
 
 def step_from_to(node0, node1, limit=75):
     ########################################################################
@@ -112,24 +113,36 @@ async def CozmoPlanning(robot: cozmo.robot.Robot):
     RRT(cmap, cmap.get_start())
     while True:
         path = cmap.get_smooth_path()
-        update_cmap, goal_center, start_pos = await move_robot_on_path(robot, marked, path)
+        update_cmap, goal_center, start_pos, goal_reached = await move_robot_on_path(robot, marked, path)
         if update_cmap:
-            # cmap.reset()
-            # cmap.set_start(start_pos)
-            # if goal_center is not None:
-            #     cmap.add_goal(goal_center)
-            # else:
-            #     cmap.add_goal(center_node)
             cmap.reset()
             cmap.set_start(start_pos)
             RRT(cmap, cmap.get_start())
-        else:
+        elif goal_reached:
             break
+        else:
+            # Turn around a bunch
+            print("Should look for goal")
+            await look_for_goal(robot, marked, center_node)
+            cmap.reset()
+            cmap.set_start(center_node)
+            RRT(cmap, cmap.get_start())
+            
 
+async def look_for_goal(robot, marked, cur_pos):
+    global goal_center_found
 
+    while not goal_center_found:
+        update_cmap, goal_center = await detect_cube_and_update_cmap(robot, marked, cur_pos)
+
+        await robot.turn_in_place(cozmo.util.degrees(45)).wait_for_completed()
+        if goal_center is not None:
+            goal_center_found = True
     
 
 async def move_robot_on_path(robot, marked, path):
+    global goal_center_found
+
     cur_node = path[0]
     first_node = True
     cur_angle = 0
@@ -145,15 +158,18 @@ async def move_robot_on_path(robot, marked, path):
         
         update_cmap, goal_center = await detect_cube_and_update_cmap(robot, marked, cur_node)
         if update_cmap:
+            if goal_center is not None:
+                goal_center_found = True
             turn_angle = diff_heading_deg(0, cur_angle)
-            await robot.turn_in_place(cozmo.util.degrees(turn_angle)).wait_for_completed()
-            return update_cmap, goal_center, cur_node
+            await robot.turn_in_place(cozmo.util.degrees(-cur_angle)).wait_for_completed()
+            return update_cmap, goal_center, cur_node, False
         dist = get_dist(node, cur_node)
         await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
         cur_node = node
         cur_angle = cur_angle + turn_angle
 
-    return False, None, None
+    goal_reached = goal_center_found
+    return False, None, None, goal_reached
 
 def diff_heading_deg(heading1, heading2):
 	dh = heading1 - heading2
