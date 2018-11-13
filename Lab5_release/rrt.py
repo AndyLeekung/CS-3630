@@ -104,11 +104,64 @@ async def CozmoPlanning(robot: cozmo.robot.Robot):
     ########################################################################
     # TODO: please enter your code below.
     # Description of function provided in instructions
+    marked = {}
     start_node = Node((6 * INCH_TO_MM, 10 * INCH_TO_MM))
     cmap.set_start(start_node)
+    center_node = Node((12 * INCH_TO_MM, 9 * INCH_TO_MM))
+    cmap.add_goal(center_node)
+    RRT(cmap, cmap.get_start())
+    while True:
+        path = cmap.get_smooth_path()
+        update_cmap, goal_center, start_pos = await move_robot_on_path(robot, marked, path)
+        if update_cmap:
+            # cmap.reset()
+            # cmap.set_start(start_pos)
+            # if goal_center is not None:
+            #     cmap.add_goal(goal_center)
+            # else:
+            #     cmap.add_goal(center_node)
+            cmap.reset()
+            cmap.set_start(start_pos)
+            RRT(cmap, cmap.get_start())
+        else:
+            break
+
+
     
 
+async def move_robot_on_path(robot, marked, path):
+    cur_node = path[0]
+    first_node = True
+    cur_angle = 0
+    for node in path:
+        if first_node:
+            first_node = False
+            continue
+        difference = ((node.x - cur_node.x), (node.y - cur_node.y))
+        diff_angle = np.arctan2(difference[1], difference[0])
+        turn_angle = diff_heading_deg(math.degrees(diff_angle), cur_angle)
+        print(str(turn_angle))
+        await robot.turn_in_place(cozmo.util.degrees(turn_angle)).wait_for_completed()
+        
+        update_cmap, goal_center = await detect_cube_and_update_cmap(robot, marked, cur_node)
+        if update_cmap:
+            turn_angle = diff_heading_deg(0, cur_angle)
+            await robot.turn_in_place(cozmo.util.degrees(turn_angle)).wait_for_completed()
+            return update_cmap, goal_center, cur_node
+        dist = get_dist(node, cur_node)
+        await robot.drive_straight(cozmo.util.distance_mm(dist), cozmo.util.speed_mmps(40)).wait_for_completed()
+        cur_node = node
+        cur_angle = cur_angle + turn_angle
 
+    return False, None, None
+
+def diff_heading_deg(heading1, heading2):
+	dh = heading1 - heading2
+	while dh > 180:
+		dh -= 360
+	while dh <= -180:
+		dh += 360
+	return dh
 
 def get_global_node(local_angle, local_origin, node):
     """Helper function: Transform the node's position (x,y) from local coordinate frame specified by local_origin and local_angle to global coordinate frame.
@@ -177,8 +230,10 @@ async def detect_cube_and_update_cmap(robot, marked, cozmo_pos):
         object_angle = obj.pose.rotation.angle_z.radians
 
         # The goal cube is defined as robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id
+        print(str(robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id))
+        print(str(obj.object_id))
         if robot.world.light_cubes[cozmo.objects.LightCube1Id].object_id == obj.object_id:
-
+            print("Goal Cube")
             # Calculate the approach position of the object
             local_goal_pos = Node((0, -cozmo_padding))
             goal_pos = get_global_node(object_angle, object_pos, local_goal_pos)
