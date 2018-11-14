@@ -160,17 +160,15 @@ async def move_robot_on_path(robot, marked, path):
         difference = ((node.x - cur_node.x), (node.y - cur_node.y))
         diff_angle = np.arctan2(difference[1], difference[0])
         turn_angle = diff_heading_deg(math.degrees(diff_angle), cur_angle)
-        print(str(turn_angle))
         await robot.turn_in_place(cozmo.util.degrees(turn_angle)).wait_for_completed()
 
 
         update_cmap, goal_center = await detect_cube_and_update_cmap(robot, marked, cur_node)
         if update_cmap:
-            await robot.turn_in_place(cozmo.util.degrees(-turn_angle)).wait_for_completed()
             if goal_center is not None:
                 goal_center_found = True
             turn_angle = diff_heading_deg(0, cur_angle)
-            await robot.turn_in_place(cozmo.util.degrees(-cur_angle)).wait_for_completed()
+            await robot.turn_in_place(cozmo.util.degrees(-turn_angle)).wait_for_completed()
             return update_cmap, goal_center, cur_node, False
 
         dist = get_dist(node, cur_node)
