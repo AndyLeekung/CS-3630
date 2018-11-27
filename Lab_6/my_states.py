@@ -5,7 +5,7 @@ import time
 import cozmo
 from cozmo.util import degrees, distance_mm, speed_mmps
 import cozmo.behavior
-# import classifyimage
+import classifyimage
 import time
 
 def most_common(lst):

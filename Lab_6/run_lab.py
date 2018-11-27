@@ -15,7 +15,6 @@ from skimage import io, feature, filters, exposure, color
 from state_machine import StateMachine
 
 def run(sdk_conn):
-    clf = joblib.load('classifier.pkl')
 
     robot = sdk_conn.wait_for_robot()
     robot.camera.image_stream_enabled = True
