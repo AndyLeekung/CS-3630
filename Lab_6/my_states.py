@@ -1,16 +1,23 @@
 import sys
-sys.path.append('../')
-from state import State
 import time
 import cozmo
-from cozmo.util import degrees, distance_mm, speed_mmps
 import cozmo.behavior
 import classifyimage
 import time
 
-def most_common(lst):
-    return max(set(lst), key=lst.count)
+from markers import detect, annotator
+from skimage import color
+from cozmo.util import degrees, distance_mm, speed_mmps
+from grid import CozGrid
+from gui import GUIWindow
+from particle import Particle, Robot
+from state import State
+from setting import *
+from particle_filter import *
+from PIL import Image
+from localize import *
 
+############## State Machine ##############
 class LocalizeState(State):
     """
         Localize, only one time?
@@ -26,7 +33,34 @@ class LocalizeState(State):
         print ('Current state: {} Cube: {}'.format(str(self), cube))
         """
         Localize
-        """
+        """ 
+
+        # show pf gui?
+        # init
+        if SHOW_PF_GUI:
+            gui.show_particles(pf.particles)
+            gui.show_mean(0, 0, 0)
+            gui.start()
+
+        # Obtain the camera intrinsics matrix
+        fx, fy = robot.camera.config.focal_length.x_y
+        cx, cy = robot.camera.config.center.x_y
+        camera_settings = np.array([
+            [fx,  0, cx],
+            [ 0, fy, cy],
+            [ 0,  0,  1]
+        ], dtype=np.float)
+
+        await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+
+        task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
+        try:
+            await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
+        except CancelledError as e:
+            print("Error happened while canceling the task: {e}".format(e=e))
+        finally:
+            print("Particle filter converged")
+
 
         self.go_to_next_state()
 

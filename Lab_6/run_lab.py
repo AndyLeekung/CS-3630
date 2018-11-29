@@ -21,15 +21,16 @@ def run(sdk_conn):
     robot.camera.color_image_enabled = False
     robot.camera.enable_auto_exposure()
 
-    # instantiate simple device in Idle State
-    device = StateMachine(robot)
+    # instantiate and run State Machine
+    robot.say_text("Hello, World!").wait_for_completed()
+    machine = StateMachine(robot)
 
 if __name__ == '__main__':
-    device = StateMachine(None)
+    # device = StateMachine(None)
 
-    # cozmo.setup_basic_logging()
+    cozmo.setup_basic_logging()
 
-    # try:
-    #     cozmo.connect(run)
-    # except cozmo.ConnectionError as e:
-    #     sys.exit("A connection error occurred: %s" % e)
+    try:
+        cozmo.connect(run)
+    except cozmo.ConnectionError as e:
+        sys.exit("A connection error occurred: %s" % e)
