@@ -114,7 +114,7 @@ class ClassifyImageState(State):
                     marker_list, annotated_image = await marker_processing(robot, camera_settings)
                     imageName = classify_image(annotated_image)
                     if imageName is in remaining_markers:
-                        goal_marker_list.append((imageName, marker))
+                        goal_marker_list.append((imageName, get_global_node(marker[2], Node(marker[0], marker[1]), Node(60, 60))))
                         remaining_markers.remove(imageName)
                     break
                 else:
@@ -141,6 +141,10 @@ class PickUpPlanState(State):
         self.robot = robot
         self.cube = cube
         print ('Current state: {} Cube: {}'.format(str(self), cube))
+        
+        cube_locations = [(0, 450), (650, 450), (0, 0), (650, 0)]
+        cube_location = cube_locations[ord(cube[0]) - 65] # A=0, B=1, ....
+
         """
         Plan route to cube
         """
