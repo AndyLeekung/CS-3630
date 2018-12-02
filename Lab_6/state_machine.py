@@ -1,6 +1,6 @@
 # simple_device.py
 
-from my_states import LocalizeState
+from my_states import LocalizeState, CompletedState
 
 class StateMachine(object):
     """ 
@@ -13,6 +13,12 @@ class StateMachine(object):
         self.robot = robot
         # Start with a default state.
         self.state = LocalizeState(self.robot, 'A')
+
+    async def run(self):
+        while self.state is not CompletedState:
+            await self.state.do_action()
+            self.state = self.state.go_to_next_state()
+
 
     # def on_event(self, event, robot):
     #     """

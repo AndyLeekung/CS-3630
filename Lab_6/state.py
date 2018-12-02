@@ -19,3 +19,7 @@ class State(object):
         Handle return to Idle after operation
         """
         pass
+
+    def do_action(self):
+        pass
+

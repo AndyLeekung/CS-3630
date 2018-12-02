@@ -35,37 +35,38 @@ class LocalizeState(State):
         Localize
         """ 
 
+    def go_to_next_state(self):
+        return PickUpPlanState(self.robot, self.cube)
+
+    async def do_action(self):
         # show pf gui?
         # init
-        if SHOW_PF_GUI:
-            gui.show_particles(pf.particles)
-            gui.show_mean(0, 0, 0)
-            gui.start()
+        print("Localize action")
+        # await self.robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+
+        # if SHOW_PF_GUI:
+        #     gui.show_particles(pf.particles)
+        #     gui.show_mean(0, 0, 0)
+        #     gui.start()
 
         # Obtain the camera intrinsics matrix
-        fx, fy = robot.camera.config.focal_length.x_y
-        cx, cy = robot.camera.config.center.x_y
+        fx, fy = self.robot.camera.config.focal_length.x_y
+        cx, cy = self.robot.camera.config.center.x_y
         camera_settings = np.array([
             [fx,  0, cx],
             [ 0, fy, cy],
             [ 0,  0,  1]
         ], dtype=np.float)
 
-        await robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+        await self.robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
 
-        task = [asyncio.ensure_future(explore(robot)), asyncio.ensure_future(update_particle_filter(robot, camera_settings))]
+        task = [asyncio.ensure_future(explore(self.robot)), asyncio.ensure_future(update_particle_filter(self.robot, camera_settings))]
         try:
             await asyncio.wait(task, return_when=asyncio.FIRST_COMPLETED)
         except CancelledError as e:
             print("Error happened while canceling the task: {e}".format(e=e))
         finally:
             print("Particle filter converged")
-
-
-        self.go_to_next_state()
-
-    def go_to_next_state(self):
-        return PickUpPlanState(self.robot, self.cube)
 
 class PickUpPlanState(State):
     """
