@@ -324,7 +324,7 @@ if __name__ == '__main__':
         robot_thread = RobotThread()
         robot_thread.start()
     else:
-        cmap = CozMap("maps/map3.json", node_generator)
+        cmap = CozMap("maps/emptygrid.json", node_generator)
         sim = RRTThread()
         sim.start()
     visualizer = Visualizer(cmap)

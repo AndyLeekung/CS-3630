@@ -22,7 +22,6 @@ def run(sdk_conn):
     robot.camera.enable_auto_exposure()
 
     # instantiate and run State Machine
-    robot.say_text("Hello, World!").wait_for_completed()
     machine = StateMachine(robot)
 
 if __name__ == '__main__':
