@@ -116,17 +116,15 @@ class ClassifyImageState(State):
                     if imageName is in remaining_markers:
                         goal_marker_list.append((imageName, marker))
                         remaining_markers.remove(imageName)
-                        
                     break
                 else:
                     # Turn around a bunch
                     print("Should look for goal")
                     await look_for_goal(robot, marked, off_center_node)
-                    # await robot.turn_in_place(cozmo.util.degrees(offset_angle)).wait_for_completed()
-                    print("Offset angle: " + str(offset_angle))
                     cmap.reset()
                     cmap.set_start(center_node)
                     RRT(cmap, cmap.get_start())
+            cmap.reset()
             start_node = marker
 
 
