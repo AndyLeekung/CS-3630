@@ -16,6 +16,7 @@ from setting import *
 from particle_filter import *
 from PIL import Image
 from localize import *
+from classifyimage import *
 
 ############## State Machine ##############
 class LocalizeState(State):
@@ -68,6 +69,69 @@ class LocalizeState(State):
         finally:
             print("Particle filter converged")
             await self.robot.say_text("Particle filter converged", duration_scalar=0.5).wait_for_completed()
+
+
+class ClassifyImageState(State):
+    """
+        Go through each of A, B, C, D locations, in that order?
+        Maybe keep a global variable to keep track of which locations we've visited
+    """
+
+    def __init__(self, robot, cube):
+        self.robot = robot
+        self.cube = cube
+        print ('Current state: {} Cube: {}'.format(str(self), cube))
+        """
+        Plan route to cube
+        """
+
+    async def do_action(self):
+        # TODO
+        # show pf gui?
+        # init
+        print("Classify Images")
+        await self.robot.set_head_angle(cozmo.util.degrees(10)).wait_for_completed()
+
+        marker_positions = [(10.5 * INCH_TO_MM, 0), (650 - 7.5 * INCH_TO_MM, 0), (0, 450 - 8.5 * INCH_TO_MM), (650 - 11.5 * INCH_TO_MM, 450), (650, 450 - 5.5 * INCH_TO_MM), (650, 6.5 * INCH_TO_MM)]
+        
+        goal_marker_list = []
+        remaining_markers = ["drone", "insepction", "plane", "order"]
+
+        start_node = compute_mean_pose(pf.particles)
+        off_center_node = (9 * INCH_TO_MM, 9 * INCH_TO_MM)
+        for marker in marker_positions:
+            cmap.set_start(start_node)
+            cmap.add_goal(marker)
+            RRT(cmap, cmap.get_start())
+            while True:
+                path = cmap.get_smooth_path()
+                update_cmap, goal_center, start_pos, goal_reached = await move_robot_on_path(robot, marked, path)
+                if update_cmap:
+                    cmap.reset()
+                    cmap.set_start(start_pos)
+                    RRT(cmap, cmap.get_start())
+                elif goal_reached:
+                    marker_list, annotated_image = await marker_processing(robot, camera_settings)
+                    imageName = classify_image(annotated_image)
+                    if imageName is in remaining_markers:
+                        goal_marker_list.append((imageName, marker))
+                        remaining_markers.remove(imageName)
+                        
+                    break
+                else:
+                    # Turn around a bunch
+                    print("Should look for goal")
+                    await look_for_goal(robot, marked, off_center_node)
+                    # await robot.turn_in_place(cozmo.util.degrees(offset_angle)).wait_for_completed()
+                    print("Offset angle: " + str(offset_angle))
+                    cmap.reset()
+                    cmap.set_start(center_node)
+                    RRT(cmap, cmap.get_start())
+            start_node = marker
+
+
+    def go_to_next_state(self):
+        return PickUpCubeState(self.robot, self.cube)
 
 class PickUpPlanState(State):
     """
