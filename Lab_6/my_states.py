@@ -67,6 +67,7 @@ class LocalizeState(State):
             print("Error happened while canceling the task: {e}".format(e=e))
         finally:
             print("Particle filter converged")
+            await self.robot.say_text("Particle filter converged", duration_scalar=0.5).wait_for_completed()
 
 class PickUpPlanState(State):
     """
@@ -82,8 +83,9 @@ class PickUpPlanState(State):
         Plan route to cube
         """
 
-
-        self.go_to_next_state()
+    async def do_action(self):
+        # TODO
+        pass
 
     def go_to_next_state(self):
         return PickUpCubeState(self.robot, self.cube)
@@ -101,7 +103,9 @@ class PickUpCubeState(State):
         """
         
 
-        self.go_to_next_state()
+    async def do_action(self):
+        # TODO
+        pass
         
     def go_to_next_state(self):
         return DropOffCubeState(self.robot, self.cube)
@@ -123,7 +127,9 @@ class DropOffCubeState(State):
         D -> Place
         """
         
-        self.go_to_next_state()
+    async def do_action(self):
+        # TODO
+        pass
         
     def go_to_next_state(self):
         if self.cube == 'D':
@@ -144,6 +150,8 @@ class CompletedState(State):
         """
         return
         
-        
+    async def do_action(self):
+        pass
+
     def go_to_next_state(self):
         return self
